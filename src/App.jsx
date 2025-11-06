@@ -3,7 +3,6 @@ import Sidebar from './components/Sidebar.jsx';
 import LeaveForm from './components/LeaveForm.jsx';
 import LeaveTable from './components/LeaveTable.jsx';
 import Filters from './components/Filters.jsx';
-import { Rocket } from 'lucide-react';
 
 const ROLE = {
   SUPER_ADMIN: 0,
@@ -35,7 +34,7 @@ export default function App() {
   const [filters, setFilters] = useState({ status: '', from: '', to: '', employee: '' });
 
   const viewableRequests = useMemo(() => {
-    // Role-based visibility
+    if (!currentUser) return [];
     if (currentUser.role === ROLE.SUPER_ADMIN) return requests;
 
     if (currentUser.role === ROLE.TEAM_LEAD) {
@@ -61,7 +60,7 @@ export default function App() {
     });
   }, [viewableRequests, filters]);
 
-  const canApprove = currentUser.role === ROLE.SUPER_ADMIN || currentUser.role === ROLE.TEAM_LEAD || currentUser.role === ROLE.PROJECT_LEAD;
+  const canApprove = currentUser && (currentUser.role === ROLE.SUPER_ADMIN || currentUser.role === ROLE.TEAM_LEAD || currentUser.role === ROLE.PROJECT_LEAD);
 
   const handleSubmitRequest = (payload) => {
     if (!payload.start || !payload.end || !payload.days) return;
@@ -105,7 +104,6 @@ export default function App() {
   };
 
   const setYearlyQuota = (days) => {
-    // Super Admin: set everyone to same balance
     setUsers((prev) => prev.map((u) => ({ ...u, balance: days })));
   };
 
@@ -116,7 +114,7 @@ export default function App() {
 
   const removeHoliday = (id) => setHolidays((h) => h.filter((x) => x.id !== id));
 
-  const myBalance = users.find((u) => u.id === currentUser.id)?.balance ?? 0;
+  const myBalance = users.find((u) => u.id === currentUserId)?.balance ?? 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 text-slate-900">
@@ -126,10 +124,10 @@ export default function App() {
         <main className="flex-1 p-6 space-y-6">
           <header className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-semibold flex items-center gap-2"><Rocket size={22} className="text-indigo-600"/> Leave Management</h1>
-              <p className="text-sm text-slate-600">Signed in as {currentUser.name} · {roleLabel[currentUser.role]}</p>
+              <h1 className="text-2xl font-semibold flex items-center gap-2">🚀 Leave Management</h1>
+              <p className="text-sm text-slate-600">Signed in as {currentUser?.name} · {currentUser ? roleLabel[currentUser.role] : ''}</p>
             </div>
-            {currentUser.role === ROLE.SUPER_ADMIN && (
+            {currentUser?.role === ROLE.SUPER_ADMIN && (
               <div className="flex items-center gap-2">
                 <button onClick={() => setYearlyQuota(12)} className="px-3 py-2 rounded-md bg-slate-900 text-white text-sm">Reset Yearly Balance (12)</button>
               </div>
@@ -138,7 +136,7 @@ export default function App() {
 
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 p-5 bg-white/80 backdrop-blur rounded-xl border border-slate-200 shadow-sm">
-              <LeaveForm onSubmit={handleSubmitRequest} balance={myBalance} roleLabel={roleLabel[currentUser.role]} />
+              <LeaveForm onSubmit={handleSubmitRequest} balance={myBalance} roleLabel={currentUser ? roleLabel[currentUser.role] : ''} />
             </div>
 
             <div className="p-5 bg-white/80 backdrop-blur rounded-xl border border-slate-200 shadow-sm space-y-4">
@@ -150,15 +148,15 @@ export default function App() {
                 </div>
                 <div className="p-3 rounded-lg bg-slate-50 border">
                   <div className="text-xs text-slate-500">Pending</div>
-                  <div className="text-xl font-semibold">{requests.filter(r=>r.userId===currentUser.id && r.status==='Pending').length}</div>
+                  <div className="text-xl font-semibold">{requests.filter(r=>r.userId===currentUserId && r.status==='Pending').length}</div>
                 </div>
                 <div className="p-3 rounded-lg bg-slate-50 border">
                   <div className="text-xs text-slate-500">Approved</div>
-                  <div className="text-xl font-semibold">{requests.filter(r=>r.userId===currentUser.id && r.status==='Approved').length}</div>
+                  <div className="text-xl font-semibold">{requests.filter(r=>r.userId===currentUserId && r.status==='Approved').length}</div>
                 </div>
               </div>
 
-              {currentUser.role === ROLE.SUPER_ADMIN && (
+              {currentUser?.role === ROLE.SUPER_ADMIN && (
                 <div className="space-y-3">
                   <div className="font-semibold">Company Holidays</div>
                   <HolidayManager holidays={holidays} onAdd={addHoliday} onRemove={removeHoliday} />
@@ -171,10 +169,10 @@ export default function App() {
             <Filters filters={filters} setFilters={setFilters} />
             <LeaveTable
               requests={filteredRequests}
-              canApprove={canApprove}
+              canApprove={!!canApprove}
               onApprove={onApprove}
               onReject={onReject}
-              showEmployee={currentUser.role !== ROLE.MEMBER}
+              showEmployee={currentUser ? currentUser.role !== ROLE.MEMBER : false}
             />
           </section>
         </main>
